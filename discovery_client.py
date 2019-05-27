@@ -54,6 +54,7 @@ DEVICE_INFO = {
     "name": "First Device",
     "protocol": "MQTT",
     "ip": get_ip_address(),
+    "unit": "C",
 }
 
 if __name__ == '__main__':

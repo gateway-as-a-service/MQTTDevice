@@ -2,8 +2,16 @@ import json
 
 import paho.mqtt.client as mqtt
 
-from config import DEVICE_UUID
-from discovery.libs.utils import retrieve_logger
+from discovery.libs.utils import retrieve_logger, get_traceback, get_ip_address
+
+DEVICE_INFO = {
+    "id": "0a9c8868-5ba4-4b18-bf92-320971118425",
+    # "id": str(uuid.uuid4()),
+    "type": "ON/OFF DEVICE",
+    "name": "First Device",
+    "protocol": "MQTT",
+    "ip": get_ip_address(),
+}
 
 
 class MessagesReceiver(object):
@@ -13,6 +21,8 @@ class MessagesReceiver(object):
         self.mqtt.on_connect = self._on_connect_callback
         self.mqtt.on_message = self._process_message_received
         self.mqtt.connect(broker_address)
+
+        self.publish_topic = "devices/{}".format(self.device_uuid)
 
         self.logger = retrieve_logger("logger")
 
@@ -25,17 +35,28 @@ class MessagesReceiver(object):
         self.logger.debug("Subscribed to: {}".format(device_forward_message_topic))
 
     def _process_message_received(self, client, user_data, message):
-        self.logger.info("Topic: {}".format(message.topic))
-        self.logger.info("QoS: {}".format(message.qos))
         parsed_message = json.loads(message.payload.decode("utf-8"))
-        self.logger.info("Message: {}".format(parsed_message))
+        new_value = parsed_message["message"]
+        self.logger.info("Received message : {}".format(parsed_message))
+        self.logger.info("Topic: {}".format(message.topic))
+
+        self.logger.info("Send to the gateway the newly received value")
+        send_message = {
+            "id": self.device_uuid,
+            "v": new_value,
+        }
+
+        try:
+            self.mqtt.publish(self.publish_topic, json.dumps(send_message), qos=0)
+        except Exception as err:
+            self.logger.error("Failed to publish the data. Reason: {}", get_traceback())
 
     def start(self):
-        self.logger.debug("Waiting incoming messages")
+        self.logger.debug("Waiting incoming messages for device: {}".format(self.device_uuid))
 
         self.mqtt.loop_forever()
 
 
 if __name__ == '__main__':
-    messages_receiver = MessagesReceiver(DEVICE_UUID, "127.0.0.1")
+    messages_receiver = MessagesReceiver(DEVICE_INFO["id"], "127.0.0.1")
     messages_receiver.start()

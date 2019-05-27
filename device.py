@@ -65,10 +65,13 @@ class MQTTSmartObject(object):
         while True:
             data = {
                 "id": DEVICE_INFO["id"],
-                "n": "First Device",
+                "n": DEVICE_INFO["name"],
                 "v": random.randint(1, 10),
                 "u": "C",
             }
+
+            self.logger.debug("Publish data: {}".format(data))
+
             try:
                 self.mqtt_client.publish(self.publish_topic, json.dumps(data), qos=0)
             except Exception as err:
