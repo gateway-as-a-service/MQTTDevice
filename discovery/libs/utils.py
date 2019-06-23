@@ -67,3 +67,7 @@ class FakeLogger(object):
 
     def critical(self, message, **kwargs):
         print("[Fake Logger][CRITICAL] {}".format(message))
+
+
+if __name__ == '__main__':
+    print(get_ip_address())

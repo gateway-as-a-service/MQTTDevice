@@ -1,4 +1,6 @@
 import json
+import sys
+import time
 
 import paho.mqtt.client as mqtt
 
@@ -14,13 +16,16 @@ DEVICE_INFO = {
 }
 
 
+# DEVICE_INFO["id"] = sys.argv[1]
+
+
 class MessagesReceiver(object):
     def __init__(self, device_uuid, broker_address):
         self.device_uuid = device_uuid
         self.mqtt = mqtt.Client()
         self.mqtt.on_connect = self._on_connect_callback
         self.mqtt.on_message = self._process_message_received
-        self.mqtt.connect(broker_address)
+        self.mqtt.connect(broker_address, keepalive=65535)
 
         self.publish_topic = "devices/{}".format(self.device_uuid)
 
@@ -31,7 +36,7 @@ class MessagesReceiver(object):
         client.connected_flag = True
 
         device_forward_message_topic = "devices/{}/forward".format(self.device_uuid)
-        self.mqtt.subscribe(device_forward_message_topic, qos=1)
+        self.mqtt.subscribe(device_forward_message_topic, qos=0)
         self.logger.debug("Subscribed to: {}".format(device_forward_message_topic))
 
     def _process_message_received(self, client, user_data, message):
@@ -44,6 +49,7 @@ class MessagesReceiver(object):
         send_message = {
             "id": self.device_uuid,
             "v": new_value,
+            "t": time.time()
         }
 
         try:

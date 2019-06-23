@@ -17,17 +17,42 @@ class HubDiscoveryClient(object):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        self.sock.settimeout(5)
+        self.sock.settimeout(50)
 
     def discover(self):
+
+        self.logger.info("Waiting for discovery message")
+
+        discovery_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        discovery_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        discovery_sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        discovery_sock.settimeout(50)
+        discovery_sock.bind(("", 9000))
+
+        discovery_server_address = ""
+        while True:
+            try:
+                data, address = discovery_sock.recvfrom(4096)
+                self.logger.info("Received discovery message: {}".format(data))
+
+                data = json.loads(data.decode("utf-8"))
+                discovery_server_address = data["ip"]
+
+                break
+
+            except Exception as err:
+                # self.logger.error("Timeout")
+                # self.logger.error(err)
+                self.logger.error(err, exc_info=True)
+
         binding_address = ("", self.discovery_service_port)
         self.sock.bind(binding_address)
 
         self.logger.debug("Contacting discovery service")
         while True:
-            broadcast_address = ("255.255.255.255", DISCOVERY_RESPONSE_PORT)
+            broadcast_address = (discovery_server_address, DISCOVERY_RESPONSE_PORT)
             self.sock.sendto(json.dumps(self.device_info).encode("utf-8"), broadcast_address)
-            self.logger.debug("Broadcast discovery message for device {}".format(self.device_info["id"]))
+            self.logger.debug("Send info about device {}".format(self.device_info["id"]))
 
             try:
                 data, address = self.sock.recvfrom(4096)
@@ -41,22 +66,21 @@ class HubDiscoveryClient(object):
 
             hub_address = address[0]
             self.logger.debug(
-                "Device {} has been registered. Hub's ip {}"
-                    .format(self.device_info["id"], hub_address)
+                "Device {} has been registered".format(self.device_info["id"])
             )
 
             return hub_address
 
 
-DEVICE_INFO = {
-    'id': str(uuid.uuid4()),
-    "type": "ON/OFF DEVICE",
-    "name": "First Device",
-    "protocol": "MQTT",
-    "ip": get_ip_address(),
-    "unit": "C",
-}
-
 if __name__ == '__main__':
+    DEVICE_INFO = {
+        'id': str(uuid.uuid4()),
+        "type": "ON/OFF DEVICE",
+        "name": "First Device",
+        "protocol": "MQTT",
+        "ip": get_ip_address(),
+        "unit": "C",
+    }
+
     hub_discovery_client = HubDiscoveryClient(DEVICE_INFO)
     hub_discovery_client.discover()

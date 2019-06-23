@@ -4,24 +4,29 @@ import time
 
 import paho.mqtt.client as mqtt
 
-from discovery.libs.utils import get_ip_address, retrieve_logger, get_traceback
+from config import Operations, PROTOCOL
+from discovery.libs.utils import get_traceback, retrieve_logger, get_ip_address
 from discovery_client import HubDiscoveryClient
 
 DEVICE_INFO = {
-    "id": "0a9c8868-5ba4-4b18-bf92-320971118425",
-    # "id": str(uuid.uuid4()),
-    "type": "ON/OFF DEVICE",
-    "name": "First Device",
-    "protocol": "MQTT",
+    "bver": 1.1,
+    "id": "a976a385-473e-4b55-9f50-ce657e69eeb4",
+    "type": "Actuator",
+    "operations": [
+        Operations.READ_OPERATION,
+        Operations.WRITE_OPERATION
+    ],
+    "n": "BathroomFan",
+    "protocol": PROTOCOL,
     "ip": get_ip_address(),
+    "values": ["on", "off"],
+    "v": "on",
 }
 
 
-# DEVICE_INFO["id"] = sys.argv[1]
+class BathroomFanDevice(object):
 
-
-class MQTTSmartObject(object):
-    def __init__(self, device_info, *args, **kwargs):
+    def __init__(self, device_info):
         self.device_info = device_info
         self.mqtt_client = mqtt.Client()
         self.mqtt_client.on_connect = self._on_connect_callback
@@ -30,7 +35,7 @@ class MQTTSmartObject(object):
         self.hub_address = None
         self.publish_topic = "devices/{}".format(self.device_info["id"])
 
-        self.logger = retrieve_logger("mqtt")
+        self.logger = retrieve_logger("bathroom_fan")
 
     def _on_connect_callback(self, client, userdata, flags, rc):
         self.logger.debug("Connected to MQTT Broker")
@@ -40,8 +45,6 @@ class MQTTSmartObject(object):
 
     def _on_publish_callback(self, client, userdata, mid):
         self.logger.debug("Published data")
-        self.logger.debug(client)
-        self.logger.debug(userdata)
         self.logger.debug(mid)
 
     def _discover_hub(self):
@@ -65,15 +68,14 @@ class MQTTSmartObject(object):
 
         self._connect_to_mqtt_broker()
 
-        time.sleep(5)  # To wait for the container to start
+        time.sleep(1000)
 
         count = 0
         while count < 10:
             data = {
-                "id": DEVICE_INFO["id"],
-                "n": DEVICE_INFO["name"],
-                "v": random.randint(15, 23),
-                "u": "C",
+                "id": self.device_info["id"],
+                "n": self.device_info["n"],
+                "v": random.choice(self.device_info["values"]),
                 "t": time.time(),
             }
 
@@ -91,5 +93,5 @@ class MQTTSmartObject(object):
 
 
 if __name__ == '__main__':
-    smart_object = MQTTSmartObject(DEVICE_INFO)
-    smart_object.start()
+    bathroom_fan = BathroomFanDevice(DEVICE_INFO)
+    bathroom_fan.start()
